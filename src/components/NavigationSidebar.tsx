@@ -11,16 +11,15 @@ interface NavigationSidebarProps {
 
 const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
   const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
+const handleSignOut = async () => {
+  try {
+    await signOut();
+    navigate('/login');
+    window.location.reload(); // <- Add this!
+  } catch (error) {
+    console.error('Error signing out:', error);
+  }
+};
   return (
     <div className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col">
       <div className="p-6 border-b border-gray-200">
