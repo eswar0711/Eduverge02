@@ -107,9 +107,9 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ user }) => {
             <h3 className="text-xl text-gray-700 mb-4">{assessment.title}</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-primary-50 rounded-lg p-4">
+              <div className="bg-blue-50 rounded-lg p-4">
                 <p className="text-sm text-gray-600 mb-1">Total Score</p>
-                <p className="text-3xl font-bold text-primary-600">{submission.total_score}%</p>
+                <p className="text-3xl font-bold text-primary-400">{submission.total_score}%</p>
               </div>
 
               <div className="bg-green-50 rounded-lg p-4">
@@ -247,7 +247,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ user }) => {
           <div className="flex justify-center">
             <button
               onClick={() => navigate('/')}
-              className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2"
+              className="px-6 py-3 bg-primary-600 text-blue-900 rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2"
             >
               <Home className="w-5 h-5" />
               Back to Dashboard

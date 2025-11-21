@@ -323,7 +323,7 @@ const AssessmentCreation: React.FC<AssessmentCreationProps> = ({ user }) => {
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 bg-primary-600 text-blue-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-5 h-5" />
                 {loading ? 'Creating...' : 'Create Assessment'}

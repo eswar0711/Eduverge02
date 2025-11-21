@@ -240,7 +240,7 @@ const TestTaking: React.FC<TestTakingProps> = ({ user }) => {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 bg-gray-50 text-orange-400 rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-5 h-5" />
                 {submitting ? 'Submitting...' : 'Submit Test'}

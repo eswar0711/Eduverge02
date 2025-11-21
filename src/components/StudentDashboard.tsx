@@ -177,7 +177,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
                         ) : (
                           <button
                             onClick={() => navigate(`/take-test/${assessment.id}`)}
-                            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2"
+                            className="px-4 py-2 bg-gray-100 text-green-600 rounded-lg hover:bg-primary-300 transition-colors flex items-center gap-2"
                           >
                             <PlayCircle className="w-4 h-4" />
                             Start Test
