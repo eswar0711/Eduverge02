@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { signIn, signUp } from '../utils/auth';
 import { BookOpen } from 'lucide-react';
+import '../index.css'
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -104,12 +105,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           )}
 
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          type="submit"
+          disabled={loading}
+          className="w-full bg-primary-600 hover:bg-primary-700 text-blue-400 font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
+          {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
           </button>
+
         </form>
 
         <div className="mt-6 text-center">
