@@ -9,8 +9,8 @@ import StudentDashboard from './components/StudentDashboard';
 import AssessmentCreation from './components/AssessmentCreation';
 import TestTaking from './components/TestTaking';
 import ResultsPage from './components/ResultsPage';
-
-
+import CoursePage from './components/CoursePage';
+import FacultyCourseMaterials from './components/FacultyCourseMaterials';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -33,17 +33,22 @@ const App: React.FC = () => {
 
   if (loading) {
     return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-lg text-gray-600">Loading...</div>
-    </div>
+      </div>
     );
   }
 
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={!user ? <LoginPage onLogin={checkUser} /> : <Navigate to="/" />} />
-        
+        {/* Login Route */}
+        <Route 
+          path="/login" 
+          element={!user ? <LoginPage onLogin={checkUser} /> : <Navigate to="/" />} 
+        />
+
+        {/* Dashboard Routes */}
         <Route
           path="/"
           element={
@@ -58,21 +63,39 @@ const App: React.FC = () => {
             )
           }
         />
-        
+
+        {/* Faculty Assessment Routes */}
         <Route
           path="/create-assessment"
           element={user?.role === 'faculty' ? <AssessmentCreation user={user} /> : <Navigate to="/" />}
         />
-        
+
+        {/* Faculty Course Materials Route */}
+        <Route
+          path="/course-materials"
+          element={user?.role === 'faculty' ? <FacultyCourseMaterials user={user} /> : <Navigate to="/" />}
+        />
+
+        {/* Student Test Taking Route */}
         <Route
           path="/take-test/:assessmentId"
           element={user?.role === 'student' ? <TestTaking user={user} /> : <Navigate to="/" />}
         />
-        
+
+        {/* Results Route */}
         <Route
           path="/results/:submissionId"
           element={user ? <ResultsPage user={user} /> : <Navigate to="/login" />}
         />
+
+        {/* Student Course Page Route */}
+        <Route
+          path="/courses"
+          element={user?.role === 'student' ? <CoursePage user={user} /> : <Navigate to="/" />}
+        />
+
+        {/* Catch-all - Redirect to dashboard */}
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
   );

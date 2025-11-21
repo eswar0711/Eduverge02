@@ -49,3 +49,38 @@ export interface Submission {
   total_score: number;
   submitted_at: string;
 }
+
+
+export interface Subject {
+  id: string;
+  name: string;
+  code: string;
+  semester: number;
+  department: string;
+  description: string | null;
+  created_at: string;
+}
+
+export interface CourseMaterial {
+  id: string;
+  subject_id: string;
+  faculty_id: string;
+  title: string;
+  description: string | null;
+  file_url: string;
+  file_name: string;
+  file_size: number | null;
+  file_type: string | null;
+  material_type: 'pdf' | 'syllabus' | 'notes' | 'assignment';
+  semester: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudentEnrollment {
+  id: string;
+  student_id: string;
+  subject_id: string;
+  semester: number;
+  enrolled_at: string;
+}
