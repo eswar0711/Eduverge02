@@ -1,9 +1,10 @@
+// src/components/FacultyDashboard.tsx
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import type { User, Assessment, Submission } from '../utils/supabaseClient';
 import NavigationSidebar from './NavigationSidebar';
 import { FileText, Users, TrendingUp } from 'lucide-react';
-
+import AssessmentSubmissions from './AssessmentSubmissions';
 import { useNavigate } from 'react-router-dom';
 
 interface FacultyDashboardProps {
@@ -20,6 +21,8 @@ const FacultyDashboard: React.FC<FacultyDashboardProps> = ({ user }) => {
     averageScore: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [showSubmissions, setShowSubmissions] = useState(false);
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -141,7 +144,7 @@ const FacultyDashboard: React.FC<FacultyDashboardProps> = ({ user }) => {
               <p className="text-gray-500 mb-4">No assessments created yet</p>
               <button
                 onClick={() => navigate('/create-assessment')}
-                className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg transition-colors"
+                className="bg-primary-600 hover:bg-primary-700 text-primary-500 px-6 py-2 rounded-lg transition-colors"
               >
                 Create Your First Assessment
               </button>
@@ -157,6 +160,7 @@ const FacultyDashboard: React.FC<FacultyDashboardProps> = ({ user }) => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submissions</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -170,6 +174,17 @@ const FacultyDashboard: React.FC<FacultyDashboardProps> = ({ user }) => {
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {new Date(assessment.created_at).toLocaleDateString()}
                       </td>
+                      <td className="px-6 py-4 text-sm">
+                        <button
+                          onClick={() => {
+                            setSelectedAssessmentId(assessment.id);
+                            setShowSubmissions(true);
+                          }}
+                          className="px-4 py-2 bg-blue-100 hover:bg-blue-400 text-gray-600 font-medium rounded-lg transition-colors"
+                        >
+                          View Submissions
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -177,6 +192,14 @@ const FacultyDashboard: React.FC<FacultyDashboardProps> = ({ user }) => {
             </div>
           )}
         </div>
+
+        {/* Submissions Modal */}
+        {showSubmissions && selectedAssessmentId && (
+          <AssessmentSubmissions
+            assessmentId={selectedAssessmentId}
+            onClose={() => setShowSubmissions(false)}
+          />
+        )}
       </div>
     </div>
   );
