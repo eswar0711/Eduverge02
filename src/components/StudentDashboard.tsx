@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import type { User, Assessment, Submission } from '../utils/supabaseClient';
 import NavigationSidebar from './NavigationSidebar';
-import { BookOpen, Clock, CheckCircle, PlayCircle } from 'lucide-react';
+import { BookOpen, Clock, CheckCircle, PlayCircle,} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface StudentDashboardProps {
@@ -72,6 +72,17 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
           <h2 className="text-3xl font-bold text-gray-800 mb-2">Student Dashboard</h2>
           <p className="text-gray-600">View and attempt available assessments</p>
         </div>
+
+        {/* Quick Actions - NEW
+        <div className="mb-6">
+          <button
+            onClick={() => navigate('/score-calculator')}
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md flex items-center gap-2 font-medium"
+          >
+            <Calculator className="w-5 h-5" />
+            Score Calculator
+          </button>
+        </div> */}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

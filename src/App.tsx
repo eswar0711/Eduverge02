@@ -11,6 +11,7 @@ import TestTaking from './components/TestTaking';
 import ResultsPage from './components/ResultsPage';
 import CoursePage from './components/CoursePage';
 import FacultyCourseMaterials from './components/FacultyCourseMaterials';
+import ScoreCalculatorModule from './components/ScoreCalculator/ScoreCalculatorModule'; // NEW
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -92,6 +93,12 @@ const App: React.FC = () => {
         <Route
           path="/courses"
           element={user?.role === 'student' ? <CoursePage user={user} /> : <Navigate to="/" />}
+        />
+
+        {/* Student Score Calculator Route - NEW */}
+        <Route
+          path="/score-calculator"
+          element={user?.role === 'student' ? <ScoreCalculatorModule /> : <Navigate to="/" />}
         />
 
         {/* Catch-all - Redirect to dashboard */}

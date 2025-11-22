@@ -1,7 +1,7 @@
 // src/components/NavigationSidebar.tsx
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, LogOut, PlusCircle, Home, FileText } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { BookOpen, LogOut, PlusCircle, Home, FileText, Calculator } from 'lucide-react';
 import { signOut } from '../utils/auth';
 import type { User } from '../utils/supabaseClient';
 
@@ -11,6 +11,7 @@ interface NavigationSidebarProps {
 
 const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSignOut = async () => {
     try {
@@ -21,6 +22,8 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
       console.error('Error signing out:', error);
     }
   };
+
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col shadow-sm">
@@ -43,7 +46,11 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
         {/* Dashboard */}
         <Link
           to="/"
-          className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors font-medium"
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${
+            isActive('/')
+              ? 'bg-blue-100 text-blue-700'
+              : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+          }`}
         >
           <Home className="w-5 h-5" />
           <span>Dashboard</span>
@@ -54,7 +61,11 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
           <>
             <Link
               to="/create-assessment"
-              className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors font-medium"
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${
+                isActive('/create-assessment')
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+              }`}
             >
               <PlusCircle className="w-5 h-5" />
               <span>Create Assessment</span>
@@ -62,7 +73,11 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
 
             <Link
               to="/course-materials"
-              className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors font-medium"
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${
+                isActive('/course-materials')
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+              }`}
             >
               <FileText className="w-5 h-5" />
               <span>Course Materials</span>
@@ -72,13 +87,32 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
 
         {/* Student Navigation */}
         {user.role === 'student' && (
-          <Link
-            to="/courses"
-            className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors font-medium"
-          >
-            <BookOpen className="w-5 h-5" />
-            <span>Course Materials</span>
-          </Link>
+          <>
+            <Link
+              to="/courses"
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${
+                isActive('/courses')
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+              }`}
+            >
+              <BookOpen className="w-5 h-5" />
+              <span>Course Materials</span>
+            </Link>
+
+            {/* NEW: Score Calculator Link */}
+            <Link
+              to="/score-calculator"
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${
+                isActive('/score-calculator')
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'text-gray-700 hover:bg-purple-50 hover:text-purple-700'
+              }`}
+            >
+              <Calculator className="w-5 h-5" />
+              <span>Score Calculator</span>
+            </Link>
+          </>
         )}
       </nav>
 
