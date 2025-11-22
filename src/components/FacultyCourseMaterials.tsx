@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import type { User, Subject, CourseMaterial } from '../utils/supabaseClient';
 import NavigationSidebar from './NavigationSidebar';
-import { Upload, Trash2, FileText, AlertCircle, BookOpen } from 'lucide-react';
+import { Upload, Trash2, FileText, BookOpen } from 'lucide-react';
 
 
 interface FacultyCourseMaterialsProps {
@@ -89,10 +89,10 @@ const FacultyCourseMaterials: React.FC<FacultyCourseMaterialsProps> = ({ user })
       }
 
       // Upload file to Supabase Storage
-      const fileName = `${subject.code}/${Date.now()}_${file.name}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('course-materials')
-        .upload(fileName, file);
+            const fileName = `${subject.code}/${Date.now()}_${file.name}`;
+            const { error: uploadError } = await supabase.storage
+              .from('course-materials')
+              .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
