@@ -1,7 +1,7 @@
 // src/components/NavigationSidebar.tsx
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { BookOpen, LogOut, PlusCircle, Home, FileText, Calculator } from 'lucide-react';
+import { BookOpen, LogOut, PlusCircle, Home, FileText, Calculator, Sparkles } from 'lucide-react';
 import { signOut } from '../utils/auth';
 import type { User } from '../utils/supabaseClient';
 
@@ -100,7 +100,7 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
               <span>Course Materials</span>
             </Link>
 
-            {/* NEW: Score Calculator Link */}
+            {/* Score Calculator Link */}
             <Link
               to="/score-calculator"
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${
@@ -111,6 +111,19 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
             >
               <Calculator className="w-5 h-5" />
               <span>Score Calculator</span>
+            </Link>
+
+            {/* AI Assistant Link - NEW */}
+            <Link
+              to="/ai-assistant"
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${
+                isActive('/ai-assistant')
+                  ? 'bg-gradient-to-r from-purple-100 to-blue-100 text-purple-700'
+                  : 'text-gray-700 hover:bg-purple-50 hover:text-purple-700'
+              }`}
+            >
+              <Sparkles className="w-5 h-5" />
+              <span>AI Assistant</span>
             </Link>
           </>
         )}

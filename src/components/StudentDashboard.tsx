@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import type { User, Assessment, Submission } from '../utils/supabaseClient';
 import NavigationSidebar from './NavigationSidebar';
-import { BookOpen, Clock, CheckCircle, PlayCircle,} from 'lucide-react';
+import { BookOpen, Clock, CheckCircle, PlayCircle, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface StudentDashboardProps {
@@ -73,16 +73,31 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
           <p className="text-gray-600">View and attempt available assessments</p>
         </div>
 
-        {/* Quick Actions - NEW
-        <div className="mb-6">
-          <button
-            onClick={() => navigate('/score-calculator')}
-            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md flex items-center gap-2 font-medium"
-          >
-            <Calculator className="w-5 h-5" />
-            Score Calculator
-          </button>
-        </div> */}
+        {/* AI Assistant Quick Access Card - NEW */}
+        <div className="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-6 h-6" />
+                <h3 className="text-xl font-bold">AI Learning Assistant</h3>
+              </div>
+              <p className="text-purple-100 mb-4">
+                Get instant help with your studies, assignments, and exam preparation
+              </p>
+              <button
+                onClick={() => navigate('/ai-assistant')}
+                className="bg-white text-purple-600 px-6 py-2 rounded-lg font-medium hover:bg-purple-50 transition-colors"
+              >
+                Start Chat
+              </button>
+            </div>
+            <div className="hidden md:block">
+              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center">
+                <Sparkles className="w-12 h-12" />
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

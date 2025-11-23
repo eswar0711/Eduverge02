@@ -11,7 +11,8 @@ import TestTaking from './components/TestTaking';
 import ResultsPage from './components/ResultsPage';
 import CoursePage from './components/CoursePage';
 import FacultyCourseMaterials from './components/FacultyCourseMaterials';
-import ScoreCalculatorModule from './components/ScoreCalculator/ScoreCalculatorModule'; // NEW
+import ScoreCalculatorModule from './components/ScoreCalculator/ScoreCalculatorModule';
+import AIAssistantModule from './components/AIAssistant/AIAssistantModule'; // NEW
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -95,10 +96,16 @@ const App: React.FC = () => {
           element={user?.role === 'student' ? <CoursePage user={user} /> : <Navigate to="/" />}
         />
 
-        {/* Student Score Calculator Route - NEW */}
+        {/* Student Score Calculator Route */}
         <Route
           path="/score-calculator"
           element={user?.role === 'student' ? <ScoreCalculatorModule /> : <Navigate to="/" />}
+        />
+
+        {/* Student AI Assistant Route - NEW */}
+        <Route
+          path="/ai-assistant"
+          element={user?.role === 'student' ? <AIAssistantModule user={user} /> : <Navigate to="/" />}
         />
 
         {/* Catch-all - Redirect to dashboard */}
