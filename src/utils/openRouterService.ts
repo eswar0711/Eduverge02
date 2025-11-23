@@ -1,7 +1,8 @@
 // src/utils/openRouterService.ts
 
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
-const API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const API_URL = "/api/openrouter";
+
 
 export interface Message {
   role: "user" | "assistant" | "system";
