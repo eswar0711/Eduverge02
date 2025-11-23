@@ -3,16 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { User } from '../../utils/supabaseClient';
 import { sendMessageToAI, getGreeting, Message } from '../../utils/openRouterService';
-import { 
-  loadChatFromSession, 
-  addMessageToSession, 
-  clearChatSession,
-  hasChatHistory 
-} from '../../utils/sessionStorageService';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import TypingIndicator from './TypingIndicator';
-import { Sparkles, ArrowLeft, Trash2, RefreshCw } from 'lucide-react';
+import { Sparkles, ArrowLeft, Trash2 } from 'lucide-react';
 
 interface AIAssistantModuleProps {
   user: User;
@@ -25,11 +19,19 @@ interface ChatMessageType {
   timestamp: Date;
 }
 
+interface StoredMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+const STORAGE_KEY_PREFIX = 'eduverge_chat_';
+const EXPIRY_HOURS = 2;
+
 const AIAssistantModule: React.FC<AIAssistantModuleProps> = ({ user }) => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversationHistory = useRef<Message[]>([]);
 
@@ -38,56 +40,72 @@ const AIAssistantModule: React.FC<AIAssistantModuleProps> = ({ user }) => {
     loadHistory();
   }, [user.id]);
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
   const loadHistory = () => {
-    setIsLoadingHistory(true);
     try {
-      // Check if we have stored chat history
-      if (hasChatHistory(user.id)) {
-        const storedMessages = loadChatFromSession(user.id);
+      const stored = sessionStorage.getItem(STORAGE_KEY_PREFIX + user.id);
+      
+      if (stored) {
+        const data = JSON.parse(stored);
         
-        // Convert stored messages to chat messages
-        const loadedMessages: ChatMessageType[] = storedMessages.map((msg, index) => ({
-          id: `${Date.now()}-${index}`,
-          content: msg.content,
-          isUser: msg.role === 'user',
-          timestamp: new Date(msg.timestamp)
-        }));
-        
-        setMessages(loadedMessages);
-        
-        // Rebuild conversation history for AI context
-        conversationHistory.current = storedMessages.map(msg => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content
-        }));
-      } else {
-        // No history, show greeting
-        showGreeting();
+        // Check if expired
+        if (Date.now() < data.expiresAt) {
+          const storedMessages: StoredMessage[] = data.messages || [];
+          
+          // Convert to chat messages
+          const loadedMessages: ChatMessageType[] = storedMessages.map((msg, index) => ({
+            id: `${Date.now()}-${index}`,
+            content: msg.content,
+            isUser: msg.role === 'user',
+            timestamp: new Date(msg.timestamp)
+          }));
+          
+          setMessages(loadedMessages);
+          
+          // Rebuild conversation history
+          conversationHistory.current = storedMessages.map(msg => ({
+            role: msg.role as 'user' | 'assistant',
+            content: msg.content
+          }));
+          
+          return;
+        } else {
+          // Expired, clear it
+          sessionStorage.removeItem(STORAGE_KEY_PREFIX + user.id);
+        }
       }
     } catch (error) {
-      console.error('Error loading chat history:', error);
-      showGreeting();
-    } finally {
-      setIsLoadingHistory(false);
+      console.error('Error loading history:', error);
     }
+    
+    // Show greeting if no history
+    showGreeting();
   };
 
   const showGreeting = () => {
     const greeting = getGreeting(user.name);
-    const greetingMessage: ChatMessageType = {
+    setMessages([{
       id: Date.now().toString(),
       content: greeting,
       isUser: false,
       timestamp: new Date()
-    };
-    setMessages([greetingMessage]);
-    
-    // Don't save greeting to session storage
+    }]);
+  };
+
+  const saveToSession = (newMessages: StoredMessage[]) => {
+    try {
+      const data = {
+        messages: newMessages,
+        expiresAt: Date.now() + (EXPIRY_HOURS * 60 * 60 * 1000)
+      };
+      sessionStorage.setItem(STORAGE_KEY_PREFIX + user.id, JSON.stringify(data));
+    } catch (error) {
+      console.error('Error saving to session:', error);
+    }
   };
 
   const handleSendMessage = async (userMessage: string) => {
@@ -100,14 +118,19 @@ const AIAssistantModule: React.FC<AIAssistantModuleProps> = ({ user }) => {
     };
     setMessages(prev => [...prev, userChatMessage]);
 
-    // Save user message to session storage
-    addMessageToSession(user.id, 'user', userMessage);
-
     // Add to conversation history
     conversationHistory.current.push({
       role: 'user',
       content: userMessage
     });
+
+    // Save to session
+    const currentMessages: StoredMessage[] = conversationHistory.current.map(msg => ({
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content,
+      timestamp: new Date().toISOString()
+    }));
+    saveToSession(currentMessages);
 
     setIsLoading(true);
 
@@ -123,15 +146,22 @@ const AIAssistantModule: React.FC<AIAssistantModuleProps> = ({ user }) => {
       };
       setMessages(prev => [...prev, aiChatMessage]);
 
-      // Save AI response to session storage
-      addMessageToSession(user.id, 'assistant', aiResponse);
-
       // Update conversation history
       conversationHistory.current.push({
         role: 'assistant',
         content: aiResponse
       });
+
+      // Save to session
+      const updatedMessages: StoredMessage[] = conversationHistory.current.map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+        timestamp: new Date().toISOString()
+      }));
+      saveToSession(updatedMessages);
+
     } catch (error) {
+      console.error('AI Error:', error);
       const errorMessage: ChatMessageType = {
         id: (Date.now() + 1).toString(),
         content: 'Sorry, I encountered an error. Please try again.',
@@ -145,15 +175,11 @@ const AIAssistantModule: React.FC<AIAssistantModuleProps> = ({ user }) => {
   };
 
   const handleClearChat = () => {
-    if (window.confirm('Are you sure you want to clear this conversation? This will delete your chat history.')) {
-      clearChatSession(user.id);
+    if (window.confirm('Are you sure you want to clear this conversation?')) {
+      sessionStorage.removeItem(STORAGE_KEY_PREFIX + user.id);
       conversationHistory.current = [];
       showGreeting();
     }
-  };
-
-  const handleRefreshChat = () => {
-    loadHistory();
   };
 
   const quickActions = [
@@ -162,15 +188,6 @@ const AIAssistantModule: React.FC<AIAssistantModuleProps> = ({ user }) => {
     'Study tips for exams',
     'Summarize a topic'
   ];
-
-  if (isLoadingHistory) {
-    return (
-      <div className="flex flex-col h-screen bg-gray-50 items-center justify-center">
-        <RefreshCw className="w-8 h-8 text-purple-600 animate-spin mb-2" />
-        <p className="text-gray-600">Loading your chat history...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -192,23 +209,13 @@ const AIAssistantModule: React.FC<AIAssistantModuleProps> = ({ user }) => {
             </div>
           </div>
           
-          {/* Action Buttons */}
-          <div className="flex gap-2">
-            <button
-              onClick={handleRefreshChat}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-              title="Refresh chat"
-            >
-              <RefreshCw className="w-5 h-5" />
-            </button>
-            <button
-              onClick={handleClearChat}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-              title="Clear conversation"
-            >
-              <Trash2 className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={handleClearChat}
+            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+            title="Clear conversation"
+          >
+            <Trash2 className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
@@ -225,7 +232,7 @@ const AIAssistantModule: React.FC<AIAssistantModuleProps> = ({ user }) => {
 
         {isLoading && <TypingIndicator />}
 
-        {/* Quick Actions (show only if conversation is just greeting) */}
+        {/* Quick Actions */}
         {messages.length === 1 && !isLoading && (
           <div className="mt-6">
             <p className="text-sm text-gray-600 mb-3">Quick suggestions:</p>
