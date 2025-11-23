@@ -1,48 +1,36 @@
 // api/openrouter.ts
 
-export default async function handler(req: Request): Promise<Response> {
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "POST only" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" }
-    });
+    return res.status(405).json({ error: "POST only" });
   }
 
   try {
     const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-
     if (!OPENROUTER_API_KEY) {
-      return new Response(JSON.stringify({ error: "API key missing on server" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" }
-      });
+      return res.status(500).json({ error: "API key missing" });
     }
 
-    const body = await req.json();
+    const body = req.body; // Node.js request body
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://your-vercel-site.vercel.app",
+        "HTTP-Referer": "https://eduverge-six3.vercel.app",
         "X-Title": "EduVerge AI Assistant"
       },
       body: JSON.stringify(body)
     });
 
     const data = await response.json();
-
-    return new Response(JSON.stringify(data), {
-      status: response.status,
-      headers: { "Content-Type": "application/json" }
-    });
+    return res.status(response.status).json(data);
 
   } catch (error) {
     console.error("Proxy error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
