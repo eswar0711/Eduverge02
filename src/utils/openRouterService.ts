@@ -1,7 +1,7 @@
 // src/utils/openRouterService.ts
-const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
-const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
+const OPENROUTER_API_KEY = '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';
+const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -13,8 +13,8 @@ const AVAILABLE_MODELS = [
   'mistralai/mistral-7b-instruct:free',
   'google/gemma-2-9b-it:free',
   'qwen/qwen-2-7b-instruct:free',
-  'nousresearch/hermes-3-llama-3.1-405b:free',
-  'meta-llama/llama-3.2-3b-instruct:free'
+  'meta-llama/llama-3.2-3b-instruct:free',
+  'nousresearch/hermes-3-llama-3.1-405b:free'
 ];
 
 export const sendMessageToAI = async (
@@ -22,9 +22,9 @@ export const sendMessageToAI = async (
   studentName: string,
   modelIndex: number = 0
 ): Promise<string> => {
-  // If we've tried all models, return error
+  // If we've tried all models, return helpful error
   if (modelIndex >= AVAILABLE_MODELS.length) {
-    return `I apologize, but all AI models are currently unavailable. This might be due to high demand on free tier models. Please try again in a few minutes, or contact your administrator to upgrade to a paid tier for guaranteed availability.`;
+    return `I apologize, but I'm having trouble connecting to the AI service right now. This could be due to high demand on free tier models. Please try again in a few moments.`;
   }
 
   const currentModel = AVAILABLE_MODELS[modelIndex];
@@ -46,12 +46,14 @@ export const sendMessageToAI = async (
       Keep responses friendly, concise, and educational. Use simple language and examples when explaining complex topics.`
     };
 
+    console.log(`Trying model: ${currentModel}`);
+
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://eduverge.app',
+        'HTTP-Referer': window.location.origin || 'https://eduverge-cse-c.vercel.app',
         'X-Title': 'EduVerge Learning Platform'
       },
       body: JSON.stringify({
@@ -65,10 +67,12 @@ export const sendMessageToAI = async (
     const data = await response.json();
     
     if (!response.ok) {
-      console.error(`Model ${currentModel} failed:`, data);
+      console.error(`Model ${currentModel} failed with status ${response.status}:`, data);
       
-      // If model not found, try next model
-      if (data.error?.message?.includes('No endpoints found')) {
+      // If model not found or no endpoints, try next model
+      if (data.error?.message?.includes('No endpoints found') || 
+          data.error?.message?.includes('not found') ||
+          response.status === 404) {
         console.log(`Trying next model (${modelIndex + 1}/${AVAILABLE_MODELS.length})...`);
         return sendMessageToAI(messages, studentName, modelIndex + 1);
       }
@@ -80,24 +84,32 @@ export const sendMessageToAI = async (
     
     if (!aiMessage) {
       console.error('No message in response:', data);
+      // Try next model if no response
+      if (modelIndex < AVAILABLE_MODELS.length - 1) {
+        console.log(`No response, trying next model (${modelIndex + 1}/${AVAILABLE_MODELS.length})...`);
+        return sendMessageToAI(messages, studentName, modelIndex + 1);
+      }
       throw new Error('No response generated');
     }
 
+    console.log(`Success with model: ${currentModel}`);
     return aiMessage;
+    
   } catch (error) {
-    console.error(`OpenRouter API Error with model ${currentModel}:`, error);
+    console.error(`Error with model ${currentModel}:`, error);
     
     // Try next model on any error
     if (modelIndex < AVAILABLE_MODELS.length - 1) {
-      console.log(`Trying next model (${modelIndex + 1}/${AVAILABLE_MODELS.length})...`);
+      console.log(`Error occurred, trying next model (${modelIndex + 1}/${AVAILABLE_MODELS.length})...`);
       return sendMessageToAI(messages, studentName, modelIndex + 1);
     }
     
+    // All models failed, return user-friendly error
     if (error instanceof Error) {
-      return `I'm having trouble connecting right now. Error: ${error.message}. Please try again in a moment.`;
+      return `I'm having trouble connecting right now. The service might be experiencing high demand. Please try again in a moment. (Error: ${error.message})`;
     }
     
-    return 'Sorry, I could not generate a response. Please try again.';
+    return 'Sorry, I could not generate a response at this time. Please try again in a few moments.';
   }
 };
 
