@@ -1,15 +1,13 @@
 // src/utils/openRouterService.ts
 
-const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 const API_URL = "/api/openrouter";
-
 
 export interface Message {
   role: "user" | "assistant" | "system";
   content: string;
 }
 
-// Only stable free models (Hermes removed — fails in deployment)
+// Only stable free models
 const FREE_MODELS = [
   "google/gemini-flash-1.5-8b",
   "meta-llama/llama-3.2-3b-instruct:free",
@@ -18,7 +16,7 @@ const FREE_MODELS = [
   "mistralai/mistral-7b-instruct:free"
 ];
 
-// Clean unwanted tokens in AI output
+// Clean AI response
 const cleanResponse = (text: string): string => {
   if (!text) return "";
 
@@ -33,7 +31,7 @@ const cleanResponse = (text: string): string => {
     .trim();
 
   if (!cleaned || cleaned.length < 5) {
-    return "I could not generate a proper response. Please try again with a clearer question.";
+    return "I could not generate a proper response. Please try again.";
   }
 
   return cleaned;
@@ -44,6 +42,7 @@ export const sendMessageToAI = async (
   studentName: string,
   modelIndex: number = 0
 ): Promise<string> => {
+
   if (modelIndex >= FREE_MODELS.length) {
     return "I'm experiencing heavy traffic right now. Please wait a moment and try again.";
   }
@@ -64,10 +63,7 @@ export const sendMessageToAI = async (
     const response = await fetch(API_URL, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": window.location.origin,
-        "X-Title": "EduVerge AI Assistant"
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         model: currentModel,
@@ -82,10 +78,8 @@ export const sendMessageToAI = async (
     clearTimeout(timeout);
 
     if (!response.ok) {
-      const errJson = await response.json().catch(() => ({}));
-
-      console.warn(`[AI] Model failed: ${currentModel}`, errJson);
-
+      const err = await response.json().catch(() => ({}));
+      console.warn(`[AI] Model failed: ${currentModel}`, err);
       return sendMessageToAI(messages, studentName, modelIndex + 1);
     }
 
@@ -93,14 +87,14 @@ export const sendMessageToAI = async (
     const raw = data?.choices?.[0]?.message?.content;
 
     if (!raw) {
-      console.warn(`[AI] Empty response from model: ${currentModel}`);
+      console.warn(`[AI] Empty response from model`);
       return sendMessageToAI(messages, studentName, modelIndex + 1);
     }
 
     const cleaned = cleanResponse(raw);
 
     if (cleaned.length < 15) {
-      console.warn(`[AI] Weak response, fallback triggered.`);
+      console.warn(`[AI] Weak response, retrying model fallback`);
       return sendMessageToAI(messages, studentName, modelIndex + 1);
     }
 
@@ -118,7 +112,6 @@ export const sendMessageToAI = async (
   }
 };
 
-// Greeting
 export const getGreeting = (studentName: string): string => {
   const hour = new Date().getHours();
   let greet = "Good evening";
