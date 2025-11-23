@@ -2,7 +2,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Enable CORS for your frontend
+  // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -20,17 +20,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
     
     if (!OPENROUTER_API_KEY) {
-      console.error('[API] Missing OPENROUTER_API_KEY environment variable');
+      console.error('[API] Missing OPENROUTER_API_KEY');
       return res.status(500).json({ error: "API key not configured" });
     }
 
     const body = req.body;
     
     if (!body || !body.model || !body.messages) {
+      console.error('[API] Invalid request body:', body);
       return res.status(400).json({ error: "Invalid request body" });
     }
 
-    console.log('[API] Requesting OpenRouter with model:', body.model);
+    console.log('[API] Request for model:', body.model);
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -43,18 +44,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify(body)
     });
 
+    // CRITICAL: Parse response as JSON first
     const data = await response.json();
     
     if (!response.ok) {
-      console.error('[API] OpenRouter error:', data);
-    } else {
-      console.log('[API] OpenRouter success');
+      console.error('[API] OpenRouter error:', response.status, data);
+      return res.status(response.status).json(data);
     }
 
-    return res.status(response.status).json(data);
+    console.log('[API] ✓ Success');
+    
+    // Return JSON response properly
+    return res.status(200).json(data);
 
   } catch (error) {
-    console.error("[API] Proxy error:", error);
+    console.error("[API] Error:", error);
+    
+    // Always return JSON
     return res.status(500).json({ 
       error: "Internal server error",
       message: error instanceof Error ? error.message : "Unknown error"
