@@ -7,58 +7,32 @@ export interface Message {
   content: string;
 }
 
-// Only stable free models
-const FREE_MODELS = [
-  "google/gemini-flash-1.5-8b",
-  "meta-llama/llama-3.2-3b-instruct:free",
-  "qwen/qwen-2-7b-instruct:free",
-  "google/gemma-2-9b-it:free",
-  "mistralai/mistral-7b-instruct:free"
-];
-
-// Clean AI response
-const cleanResponse = (text: string): string => {
-  if (!text) return "";
-
-  let cleaned = text
-    .replace(/<\/?s>/gi, "")
-    .replace(/<<\/?SYS>>/gi, "")
-    .replace(/<\|im_start\|>/gi, "")
-    .replace(/<\|im_end\|>/gi, "")
-    .replace(/<\|.*?\|>/g, "")
-    .replace(/\[INST\]|\[\/INST\]/g, "")
-    .replace(/\[\/?\w+\]/g, "")
-    .trim();
-
-  if (!cleaned || cleaned.length < 5) {
-    return "I could not generate a proper response. Please try again.";
-  }
-
-  return cleaned;
-};
+// Single model - ChatGPT-4o (reliable, high quality)
+const MODEL = "openai/gpt-4o";
 
 export const sendMessageToAI = async (
   messages: Message[],
-  studentName: string,
-  modelIndex: number = 0
+  studentName: string
 ): Promise<string> => {
-
-  if (modelIndex >= FREE_MODELS.length) {
-    return "I'm experiencing heavy traffic right now. Please wait a moment and try again.";
-  }
-
-  const currentModel = FREE_MODELS[modelIndex];
-
   try {
     const systemPrompt: Message = {
       role: "system",
-      content: `You are EduVerge AI Assistant helping ${studentName}. Be friendly, clear, and academic. Keep responses under 200 words unless needed.`
+      content: `You are an intelligent academic assistant for EduVerge learning platform, helping ${studentName}.
+
+Your role:
+- Answer academic questions clearly and concisely
+- Help with homework, assignments, and exam preparation
+- Provide study tips and learning strategies
+- Explain complex concepts using simple language
+- Be encouraging, friendly, and supportive
+
+Keep responses focused and under 250 words unless explaining complex topics requires more detail.`
     };
 
-    console.log(`[AI] Trying model: ${currentModel}`);
+    console.log(`[AI] Using model: ${MODEL}`);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
     const response = await fetch(API_URL, {
       method: "POST",
@@ -66,11 +40,11 @@ export const sendMessageToAI = async (
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: currentModel,
+        model: MODEL,
         messages: [systemPrompt, ...messages],
         temperature: 0.7,
-        max_tokens: 600,
-        top_p: 0.9
+        max_tokens: 1000, // Higher for better responses
+        top_p: 1
       }),
       signal: controller.signal
     });
@@ -78,37 +52,34 @@ export const sendMessageToAI = async (
     clearTimeout(timeout);
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      console.warn(`[AI] Model failed: ${currentModel}`, err);
-      return sendMessageToAI(messages, studentName, modelIndex + 1);
+      const errorData = await response.json().catch(() => ({}));
+      console.error('[AI] API Error:', errorData);
+      throw new Error(errorData.error?.message || `API returned ${response.status}`);
     }
 
     const data = await response.json();
-    const raw = data?.choices?.[0]?.message?.content;
+    const aiMessage = data?.choices?.[0]?.message?.content;
 
-    if (!raw) {
-      console.warn(`[AI] Empty response from model`);
-      return sendMessageToAI(messages, studentName, modelIndex + 1);
+    if (!aiMessage) {
+      console.error('[AI] No message in response:', data);
+      throw new Error('No response generated');
     }
 
-    const cleaned = cleanResponse(raw);
-
-    if (cleaned.length < 15) {
-      console.warn(`[AI] Weak response, retrying model fallback`);
-      return sendMessageToAI(messages, studentName, modelIndex + 1);
-    }
-
-    console.log(`[AI] Success with model: ${currentModel}`);
-    return cleaned;
+    console.log(`[AI] ✓ Success`);
+    return aiMessage.trim();
 
   } catch (error: any) {
-    console.error(`[AI] Error using ${currentModel}:`, error);
+    console.error("[AI] Error:", error);
 
     if (error?.name === "AbortError") {
-      return "The request timed out. Try asking again.";
+      return "The request took too long. Please try asking a shorter question.";
     }
 
-    return sendMessageToAI(messages, studentName, modelIndex + 1);
+    if (error?.message?.includes('rate limit')) {
+      return "I'm receiving many requests right now. Please wait a moment and try again.";
+    }
+
+    return "I apologize, but I'm having trouble connecting right now. Please try again in a moment.";
   }
 };
 
@@ -119,5 +90,5 @@ export const getGreeting = (studentName: string): string => {
   if (hour < 12) greet = "Good morning";
   else if (hour < 17) greet = "Good afternoon";
 
-  return `${greet}, ${studentName}! 👋 I'm your AI learning assistant. How can I help you today?`;
+  return `${greet}, ${studentName}! 👋 I'm your AI learning assistant powered by ChatGPT-4o. How can I help you with your studies today?`;
 };
