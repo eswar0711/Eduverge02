@@ -1,40 +1,40 @@
 // src/utils/openRouterService.ts
+
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
-const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export interface Message {
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
 }
 
-// Free models only - optimized order based on reliability
+// Only stable free models (Hermes removed — fails in deployment)
 const FREE_MODELS = [
-  'google/gemini-flash-1.5-8b',      // Fast and reliable
-  'meta-llama/llama-3.2-3b-instruct:free',
-  'qwen/qwen-2-7b-instruct:free',
-  'google/gemma-2-9b-it:free',
-  'mistralai/mistral-7b-instruct:free',
-  'nousresearch/hermes-3-llama-3.1-405b:free'
+  "google/gemini-flash-1.5-8b",
+  "meta-llama/llama-3.2-3b-instruct:free",
+  "qwen/qwen-2-7b-instruct:free",
+  "google/gemma-2-9b-it:free",
+  "mistralai/mistral-7b-instruct:free"
 ];
 
-// Clean special tokens from AI responses
+// Clean unwanted tokens in AI output
 const cleanResponse = (text: string): string => {
-  if (!text) return '';
-  
+  if (!text) return "";
+
   let cleaned = text
-    .replace(/<\/?s>/gi, '')
-    .replace(/<<\/?SYS>>/gi, '')
-    .replace(/<\|im_start\|>/gi, '')
-    .replace(/<\|im_end\|>/gi, '')
-    .replace(/<\|.*?\|>/g, '')
-    .replace(/\[INST\]|\[\/INST\]/g, '')
-    .replace(/\[\/?\w+\]/g, '')
+    .replace(/<\/?s>/gi, "")
+    .replace(/<<\/?SYS>>/gi, "")
+    .replace(/<\|im_start\|>/gi, "")
+    .replace(/<\|im_end\|>/gi, "")
+    .replace(/<\|.*?\|>/g, "")
+    .replace(/\[INST\]|\[\/INST\]/g, "")
+    .replace(/\[\/?\w+\]/g, "")
     .trim();
-  
+
   if (!cleaned || cleaned.length < 5) {
-    return 'I apologize, but I had trouble generating a proper response. Please try asking your question again or rephrase it.';
+    return "I could not generate a proper response. Please try again with a clearer question.";
   }
-  
+
   return cleaned;
 };
 
@@ -43,31 +43,30 @@ export const sendMessageToAI = async (
   studentName: string,
   modelIndex: number = 0
 ): Promise<string> => {
-  // If tried all models, return helpful error
   if (modelIndex >= FREE_MODELS.length) {
-    return `I'm experiencing high demand right now. Please try again in a moment. Tip: Try asking simpler questions or wait a few seconds between messages.`;
+    return "I'm experiencing heavy traffic right now. Please wait a moment and try again.";
   }
 
   const currentModel = FREE_MODELS[modelIndex];
 
   try {
     const systemPrompt: Message = {
-      role: 'system',
-      content: `You are a helpful academic assistant for ${studentName} on EduVerge learning platform. Answer questions clearly and concisely about any academic subject. Be encouraging and supportive. Keep responses under 200 words unless explaining complex topics.`
+      role: "system",
+      content: `You are EduVerge AI Assistant helping ${studentName}. Be friendly, clear, and academic. Keep responses under 200 words unless needed.`
     };
 
-    console.log(`[AI] Trying: ${currentModel}`);
+    console.log(`[AI] Trying model: ${currentModel}`);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
     const response = await fetch(API_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': window.location.origin || 'https://eduverge-cse-c.vercel.app',
-        'X-Title': 'EduVerge AI Assistant'
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": window.location.origin,
+        "X-Title": "EduVerge AI Assistant"
       },
       body: JSON.stringify({
         model: currentModel,
@@ -82,67 +81,49 @@ export const sendMessageToAI = async (
     clearTimeout(timeout);
 
     if (!response.ok) {
-      const data = await response.json();
-      console.warn(`[AI] Model ${currentModel} failed:`, data.error?.message || response.status);
-      
-      // Try next model immediately
-      if (modelIndex < FREE_MODELS.length - 1) {
-        return sendMessageToAI(messages, studentName, modelIndex + 1);
-      }
-      
-      throw new Error(data.error?.message || 'Service unavailable');
+      const errJson = await response.json().catch(() => ({}));
+
+      console.warn(`[AI] Model failed: ${currentModel}`, errJson);
+
+      return sendMessageToAI(messages, studentName, modelIndex + 1);
     }
 
     const data = await response.json();
-    const rawMessage = data.choices?.[0]?.message?.content;
-    
-    if (!rawMessage) {
-      console.warn(`[AI] No response from ${currentModel}`);
-      if (modelIndex < FREE_MODELS.length - 1) {
-        return sendMessageToAI(messages, studentName, modelIndex + 1);
-      }
-      throw new Error('No response');
-    }
+    const raw = data?.choices?.[0]?.message?.content;
 
-    const cleanedMessage = cleanResponse(rawMessage);
-    
-    // Validate response quality
-    if (cleanedMessage.length < 15 || cleanedMessage.includes('had trouble generating')) {
-      console.warn(`[AI] Poor response quality, trying next model`);
-      if (modelIndex < FREE_MODELS.length - 1) {
-        return sendMessageToAI(messages, studentName, modelIndex + 1);
-      }
-    }
-
-    console.log(`[AI] ✓ Success: ${currentModel}`);
-    return cleanedMessage;
-    
-  } catch (error) {
-    console.error(`[AI] Error with ${currentModel}:`, error);
-    
-    // Try next model
-    if (modelIndex < FREE_MODELS.length - 1) {
+    if (!raw) {
+      console.warn(`[AI] Empty response from model: ${currentModel}`);
       return sendMessageToAI(messages, studentName, modelIndex + 1);
     }
-    
-    // All failed
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        return 'The request took too long. Please try a shorter question or try again.';
-      }
-      return `Service temporarily unavailable. Please try again in a moment.`;
+
+    const cleaned = cleanResponse(raw);
+
+    if (cleaned.length < 15) {
+      console.warn(`[AI] Weak response, fallback triggered.`);
+      return sendMessageToAI(messages, studentName, modelIndex + 1);
     }
-    
-    return 'Unable to connect right now. Please try again shortly.';
+
+    console.log(`[AI] Success with model: ${currentModel}`);
+    return cleaned;
+
+  } catch (error: any) {
+    console.error(`[AI] Error using ${currentModel}:`, error);
+
+    if (error?.name === "AbortError") {
+      return "The request timed out. Try asking again.";
+    }
+
+    return sendMessageToAI(messages, studentName, modelIndex + 1);
   }
 };
 
+// Greeting
 export const getGreeting = (studentName: string): string => {
   const hour = new Date().getHours();
-  let timeGreeting = 'Good evening';
-  
-  if (hour < 12) timeGreeting = 'Good morning';
-  else if (hour < 17) timeGreeting = 'Good afternoon';
-  
-  return `${timeGreeting}, ${studentName}! 👋 I'm your AI learning assistant. How can I help you with your studies today?`;
+  let greet = "Good evening";
+
+  if (hour < 12) greet = "Good morning";
+  else if (hour < 17) greet = "Good afternoon";
+
+  return `${greet}, ${studentName}! 👋 I'm your AI learning assistant. How can I help you today?`;
 };
