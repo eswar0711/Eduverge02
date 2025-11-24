@@ -3,8 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import type { User, Subject, CourseMaterial } from '../utils/supabaseClient';
 import NavigationSidebar from './NavigationSidebar';
+import SubjectManagement from './SubjectManagement';  // ← NEW IMPORT
 import { Upload, Trash2, FileText, BookOpen } from 'lucide-react';
-
 
 interface FacultyCourseMaterialsProps {
   user: User;
@@ -89,10 +89,10 @@ const FacultyCourseMaterials: React.FC<FacultyCourseMaterialsProps> = ({ user })
       }
 
       // Upload file to Supabase Storage
-            const fileName = `${subject.code}/${Date.now()}_${file.name}`;
-            const { error: uploadError } = await supabase.storage
-              .from('course-materials')
-              .upload(fileName, file);
+      const fileName = `${subject.code}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('course-materials')
+        .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
@@ -196,6 +196,10 @@ const FacultyCourseMaterials: React.FC<FacultyCourseMaterialsProps> = ({ user })
           <h2 className="text-3xl font-bold text-gray-800 mb-2">Course Materials Management</h2>
           <p className="text-gray-600">Upload and manage study materials for your courses</p>
         </div>
+
+        {/* ==================== NEW: Subject Management ==================== */}
+        <SubjectManagement onSubjectAdded={fetchData} />
+        {/* ================================================================= */}
 
         {/* Upload Form */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
