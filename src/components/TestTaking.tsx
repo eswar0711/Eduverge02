@@ -1,11 +1,16 @@
-// src/components/TestTaking.tsx
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabaseClient';
-import type { User, Assessment, Question } from '../utils/supabaseClient';
+import type { User, Question } from '../utils/supabaseClient';
 import { autoGradeMCQ } from '../utils/autoGrading';
 import NavigationSidebar from './NavigationSidebar';
-import { Clock, Send } from 'lucide-react';
+import {
+  getOrCreateTestSession,
+  calculateRemainingTime,
+  completeTestSession,
+  type TestSession,
+} from '../utils/testTimer';
+import { Clock, Send, AlertCircle } from 'lucide-react';
 
 interface TestTakingProps {
   user: User;
@@ -14,68 +19,113 @@ interface TestTakingProps {
 const TestTaking: React.FC<TestTakingProps> = ({ user }) => {
   const { assessmentId } = useParams<{ assessmentId: string }>();
   const navigate = useNavigate();
-  
-  const [assessment, setAssessment] = useState<Assessment | null>(null);
+
+  const [assessment, setAssessment] = useState<any>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [testSession, setTestSession] = useState<TestSession | null>(null);
+  const [isTimeExpired, setIsTimeExpired] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Initialize test
   useEffect(() => {
-    fetchAssessment();
+    const initializeTest = async () => {
+      try {
+        if (!assessmentId) {
+          setError('Assessment ID is missing');
+          setLoading(false);
+          return;
+        }
+
+        // Fetch assessment
+        const { data: assessmentData, error: assessmentError } = await supabase
+          .from('assessments')
+          .select('*')
+          .eq('id', assessmentId)
+          .single();
+
+        if (assessmentError || !assessmentData) {
+          console.error('Assessment fetch error:', assessmentError);
+          setError('Failed to load assessment');
+          setLoading(false);
+          return;
+        }
+
+        setAssessment(assessmentData);
+
+        // Fetch questions
+        const { data: questionsData, error: questionsError } = await supabase
+          .from('questions')
+          .select('*')
+          .eq('assessment_id', assessmentId);
+
+        if (questionsError) {
+          console.error('Questions fetch error:', questionsError);
+          setError('Failed to load questions');
+          setLoading(false);
+          return;
+        }
+
+        setQuestions(questionsData || []);
+
+        // Create or retrieve test session
+        const session = await getOrCreateTestSession(
+          assessmentId,
+          assessmentData.duration_minutes
+        );
+        setTestSession(session);
+
+        // Calculate remaining time
+        const remaining = calculateRemainingTime(session);
+        setTimeLeft(remaining);
+
+        if (remaining <= 0) {
+          setIsTimeExpired(true);
+          alert('⏱️ Time expired for this assessment');
+        }
+
+        setLoading(false);
+      } catch (error: any) {
+        console.error('Error initializing test:', error);
+        setError('Error loading test: ' + (error.message || 'Unknown error'));
+        setLoading(false);
+      }
+    };
+
+    initializeTest();
   }, [assessmentId]);
 
+  // Server-side timer
   useEffect(() => {
-    if (timeLeft === 0) return;
+    if (!testSession || isTimeExpired || submitting) return;
 
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          handleSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
+      const remaining = calculateRemainingTime(testSession);
+
+      if (remaining <= 0) {
+        setIsTimeExpired(true);
+        setTimeLeft(0);
+        clearInterval(timer);
+        alert('⏱️ Time expired! Auto-submitting your test...');
+        handleAutoSubmit();
+      } else {
+        setTimeLeft(remaining);
+      }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft]);
-
-  const fetchAssessment = async () => {
-    try {
-      // Fetch assessment
-      const { data: assessmentData, error: assessmentError } = await supabase
-        .from('assessments')
-        .select('*')
-        .eq('id', assessmentId)
-        .single();
-
-      if (assessmentError) throw assessmentError;
-      setAssessment(assessmentData);
-
-      // Fetch questions
-      const { data: questionsData, error: questionsError } = await supabase
-        .from('questions')
-        .select('*')
-        .eq('assessment_id', assessmentId);
-
-      if (questionsError) throw questionsError;
-      setQuestions(questionsData || []);
-
-      // Set timer
-      setTimeLeft(assessmentData.duration_minutes * 60);
-    } catch (error) {
-      console.error('Error fetching assessment:', error);
-      alert('Error loading assessment');
-      navigate('/');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [testSession, isTimeExpired, submitting]);
 
   const handleAnswerChange = (questionId: string, answer: string) => {
     setAnswers({ ...answers, [questionId]: answer });
+  };
+
+  const handleAutoSubmit = async () => {
+    if (!testSession) return;
+    await submitTest(true);
   };
 
   const handleSubmit = async () => {
@@ -84,68 +134,146 @@ const TestTaking: React.FC<TestTakingProps> = ({ user }) => {
     const confirmed = window.confirm('Are you sure you want to submit your test?');
     if (!confirmed) return;
 
+    await submitTest(false);
+  };
+
+  const submitTest = async (isAutoSubmit: boolean) => {
+    if (!testSession) return;
+
     setSubmitting(true);
 
     try {
+      // Mark session as completed
+      await completeTestSession(testSession.id);
+
       // Auto-grade MCQ
       const mcqScore = autoGradeMCQ(questions, answers);
-      
-      // Calculate total possible marks
-      const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
-      
-      
-      // Calculate percentage score
-      const percentageScore = totalMarks > 0 ? Math.round((mcqScore / totalMarks) * 100) : 0;
 
-      // Create submission
-      const { data: submission, error } = await supabase
+      // Calculate total marks
+      const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
+      const percentageScore =
+        totalMarks > 0 ? Math.round((mcqScore / totalMarks) * 100) : 0;
+
+      // Submit with new columns
+      const { data: submission, error: submitError } = await supabase
         .from('submissions')
         .insert({
           assessment_id: assessmentId,
           student_id: user.id,
+          test_session_id: testSession.id,
           answers: answers,
           mcq_score: mcqScore,
-          theory_score: null, // Will be graded by faculty
+          theory_score: null,
           total_score: percentageScore,
+          is_auto_submitted: isAutoSubmit,
+          submitted_at: new Date().toISOString(),
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (submitError) {
+        throw submitError;
+      }
 
-      alert('Test submitted successfully!');
+      alert(
+        isAutoSubmit
+          ? '✅ Test auto-submitted due to time expiry!'
+          : '✅ Test submitted successfully!'
+      );
       navigate(`/results/${submission.id}`);
     } catch (error: any) {
       console.error('Error submitting test:', error);
-      alert('Error submitting test: ' + error.message);
+      setError('Error submitting test: ' + (error.message || 'Unknown error'));
+      alert('Error submitting test. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+
+    if (hours > 0) {
+      return `${hours}h ${mins}m ${secs.toString().padStart(2, '0')}s`;
+    }
+    return `${mins}m ${secs.toString().padStart(2, '0')}s`;
+  };
+
+  const getTimeColor = (): string => {
+    if (timeLeft <= 300) return 'text-red-600';
+    if (timeLeft <= 600) return 'text-yellow-600';
+    return 'text-green-600';
+  };
+
+  const getTimeBgColor = (): string => {
+    if (timeLeft <= 300) return 'bg-red-50';
+    if (timeLeft <= 600) return 'bg-yellow-50';
+    return 'bg-green-50';
   };
 
   if (loading) {
     return (
       <div className="flex">
         <NavigationSidebar user={user} />
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center bg-gray-50">
           <div className="text-lg text-gray-600">Loading test...</div>
         </div>
       </div>
     );
   }
 
-  if (!assessment) {
+  if (error) {
     return (
       <div className="flex">
         <NavigationSidebar user={user} />
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center bg-gray-50">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+            <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-red-600 mb-2">Error</h2>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <button
+              onClick={() => navigate('/')}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!assessment || !testSession) {
+    return (
+      <div className="flex">
+        <NavigationSidebar user={user} />
+        <div className="flex-1 flex items-center justify-center bg-gray-50">
           <div className="text-lg text-red-600">Assessment not found</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isTimeExpired) {
+    return (
+      <div className="flex">
+        <NavigationSidebar user={user} />
+        <div className="flex-1 flex items-center justify-center bg-gray-50">
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center max-w-md">
+            <AlertCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-red-600 mb-2">⏱️ Time Expired</h2>
+            <p className="text-gray-600 mb-6">
+              Your test time has been used up. Your answers have been auto-submitted.
+            </p>
+            <button
+              onClick={() => navigate('/')}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Back to Dashboard
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -161,18 +289,36 @@ const TestTaking: React.FC<TestTakingProps> = ({ user }) => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">{assessment.title}</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                  {assessment.title}
+                </h2>
                 <p className="text-gray-600">
                   {assessment.subject} - Unit {assessment.unit}
                 </p>
               </div>
-              <div className="text-right">
-                <div className="flex items-center gap-2 text-lg font-semibold text-primary-600">
-                  <Clock className="w-5 h-5" />
+
+              {/* Timer */}
+              <div
+                className={`text-right px-6 py-4 rounded-lg border-2 ${getTimeBgColor()} ${
+                  timeLeft <= 300 ? 'border-red-200' : 'border-green-200'
+                }`}
+              >
+                <div className={`flex items-center gap-2 text-2xl font-bold ${getTimeColor()}`}>
+                  <Clock className="w-6 h-6" />
                   {formatTime(timeLeft)}
                 </div>
                 <p className="text-sm text-gray-600 mt-1">Time Remaining</p>
+                {timeLeft <= 300 && (
+                  <p className="text-xs text-red-600 font-semibold mt-2 animate-pulse">
+                    ⚠️ Time running out!
+                  </p>
+                )}
               </div>
+            </div>
+
+            {/* Security Notice */}
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+              🔒 Your timer is secure and server-managed. Refreshing the page will NOT reset your time.
             </div>
           </div>
 
@@ -190,7 +336,7 @@ const TestTaking: React.FC<TestTakingProps> = ({ user }) => {
                       ({question.marks} {question.marks === 1 ? 'mark' : 'marks'})
                     </span>
                   </h3>
-                  <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
+                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                     {question.type}
                   </span>
                 </div>
@@ -210,7 +356,8 @@ const TestTaking: React.FC<TestTakingProps> = ({ user }) => {
                           value={option}
                           checked={answers[question.id] === option}
                           onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                          className="w-4 h-4 text-primary-600 focus:ring-primary-500"
+                          className="w-4 h-4 text-blue-600"
+                          disabled={isTimeExpired}
                         />
                         <span className="ml-3 text-gray-700">
                           {String.fromCharCode(65 + oIndex)}. {option}
@@ -222,9 +369,10 @@ const TestTaking: React.FC<TestTakingProps> = ({ user }) => {
                   <textarea
                     value={answers[question.id] || ''}
                     onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows={6}
                     placeholder="Type your answer here..."
+                    disabled={isTimeExpired}
                   />
                 )}
               </div>
@@ -239,8 +387,8 @@ const TestTaking: React.FC<TestTakingProps> = ({ user }) => {
               </p>
               <button
                 onClick={handleSubmit}
-                disabled={submitting}
-                className="px-6 py-3 bg-gray-50 text-orange-400 rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={submitting || isTimeExpired}
+                className="px-6 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
               >
                 <Send className="w-5 h-5" />
                 {submitting ? 'Submitting...' : 'Submit Test'}

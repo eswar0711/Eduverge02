@@ -1,17 +1,34 @@
-// src/components/NavigationSidebar.tsx
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { BookOpen, LogOut, PlusCircle, Home, FileText, Calculator, Sparkles } from 'lucide-react';
+import {
+  BookOpen,
+  LogOut,
+  PlusCircle,
+  Home,
+  FileText,
+  Calculator,
+  Sparkles,
+  User as UserIcon,
+  Lock,
+  
+} from 'lucide-react';
 import { signOut } from '../utils/auth';
 import type { User } from '../utils/supabaseClient';
+
+
+
 
 interface NavigationSidebarProps {
   user: User;
 }
 
+
+
 const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
+
+
 
   const handleSignOut = async () => {
     try {
@@ -23,7 +40,11 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
     }
   };
 
+
+
   const isActive = (path: string) => location.pathname === path;
+
+
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col shadow-sm">
@@ -41,6 +62,8 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
         </p>
       </div>
 
+
+
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
         {/* Dashboard */}
@@ -55,6 +78,8 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
           <Home className="w-5 h-5" />
           <span>Dashboard</span>
         </Link>
+
+
 
         {/* Faculty Navigation */}
         {user.role === 'faculty' && (
@@ -71,6 +96,8 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
               <span>Create Assessment</span>
             </Link>
 
+
+
             <Link
               to="/course-materials"
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${
@@ -84,6 +111,8 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
             </Link>
           </>
         )}
+
+
 
         {/* Student Navigation */}
         {user.role === 'student' && (
@@ -100,6 +129,7 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
               <span>Course Materials</span>
             </Link>
 
+
             {/* Score Calculator Link */}
             <Link
               to="/score-calculator"
@@ -113,7 +143,8 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
               <span>Score Calculator</span>
             </Link>
 
-            {/* AI Assistant Link - NEW */}
+
+            {/* AI Assistant Link */}
             <Link
               to="/ai-assistant"
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${
@@ -127,10 +158,57 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
             </Link>
           </>
         )}
+
+
+
+        {/* Divider for Settings */}
+        <div className="my-4 h-px bg-gray-200"></div>
+
+
+
+        {/* Settings Section */}
+        <div className="text-xs font-semibold text-gray-500 uppercase px-4 py-2">Settings</div>
+
+
+        {/* My Profile */}
+        <Link
+          to="/profile"
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${
+            isActive('/profile')
+              ? 'bg-green-100 text-green-700'
+              : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
+          }`}
+        >
+          <UserIcon className="w-5 h-5" />
+          <span>My Profile</span>
+        </Link>
+
+
+
+        {/* Change Password */}
+        <Link
+          to="/change-password"
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${
+            isActive('/change-password')
+              ? 'bg-orange-100 text-orange-700'
+              : 'text-gray-700 hover:bg-orange-50 hover:text-orange-700'
+          }`}
+        >
+          <Lock className="w-5 h-5" />
+          <span>Change Password</span>
+        </Link>
+
+
+
+        
       </nav>
+
+
 
       {/* Divider */}
       <div className="mx-4 h-px bg-gray-200"></div>
+
+
 
       {/* Sign Out */}
       <div className="p-4">
@@ -145,5 +223,7 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
     </div>
   );
 };
+
+
 
 export default NavigationSidebar;

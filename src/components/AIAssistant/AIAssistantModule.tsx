@@ -183,8 +183,8 @@ const AIAssistantModule: React.FC<AIAssistantModuleProps> = ({ user }) => {
   };
 
   const quickActions = [
-    'Explain photosynthesis',
-    'Help with math homework',
+    'What is java?',
+    'How do I improve my soft skills?',
     'Study tips for exams',
     'Summarize a topic'
   ];

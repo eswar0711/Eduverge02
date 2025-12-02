@@ -143,7 +143,7 @@ const CoursePage: React.FC<CoursePageProps> = ({ user }) => {
                 className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
               >
                 {/* Subject Header */}
-                <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 text-white">
+                <div className="bg-gradient-to-r from-purple-600 to-pink-500 p-6 text-white">
                   <div className="flex items-start justify-between">
                     <div>
                       <h3 className="text-xl font-bold mb-1">{subject.name}</h3>
@@ -198,7 +198,7 @@ const CoursePage: React.FC<CoursePageProps> = ({ user }) => {
                           </div>
                           <button
                             onClick={() => downloadMaterial(material)}
-                            className="ml-4 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                            className="ml-4 p-2 bg-indigo-400 hover:bg-blue-500 text-white rounded-lg transition-colors"
                             title="Download"
                           >
                             <Download className="w-5 h-5" />

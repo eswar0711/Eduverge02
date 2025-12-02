@@ -74,7 +74,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
         </div>
 
         {/* AI Assistant Quick Access Card - NEW */}
-        <div className="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-6 text-white shadow-lg">
+        <div className="mb-6 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
