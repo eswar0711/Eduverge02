@@ -13,6 +13,8 @@ import FacultyCourseMaterials from './components/FacultyCourseMaterials';
 import ScoreCalculatorModule from './components/ScoreCalculator/ScoreCalculatorModule';
 import AIAssistantModule from './components/AIAssistant/AIAssistantModule';
 import { ChangePassword, UserProfile } from './components/UserSettings'; // NEW
+import ProtectedRoute from './components/Admin/ProtectedRoute';
+import AdminDashboard from './components/Admin/AdminDashboard';
 
 
 const App: React.FC = () => {
@@ -54,6 +56,29 @@ const App: React.FC = () => {
           path="/login" 
           element={!user ? <LoginPage onLogin={checkUser} /> : <Navigate to="/" />} 
         />
+        {/* Admin Routes */}
+        <Route
+  path="/admin/*"
+  element={
+    user && user.email === 'tsushmanth@gmail.com' ? (
+      <ProtectedRoute>
+        <AdminDashboard />
+      </ProtectedRoute>
+    ) : (
+      <Navigate to="/login" />
+    )
+  }
+/>
+
+{/* 
+        <Route
+  path="/admin/*"
+  element={
+    <ProtectedRoute>
+      <AdminDashboard />
+    </ProtectedRoute>
+  }
+/> */}
 
 
         {/* Dashboard Routes */}

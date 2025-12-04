@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import {
   BarChart3,
@@ -18,7 +17,7 @@ interface AdminSidebarProps {
   onLogout: () => void;
 }
 
-export default function AdminSidebar({
+function AdminSidebar({
   activeTab,
   onTabChange,
   onLogout,
@@ -106,3 +105,5 @@ export default function AdminSidebar({
     </>
   );
 }
+
+export default AdminSidebar;

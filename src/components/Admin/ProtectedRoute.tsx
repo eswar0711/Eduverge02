@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentAdmin, checkAdminAccess } from '../../utils/adminService';
@@ -7,12 +6,26 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
+/**  
+ * DEV MODE:
+ * - true  → access admin dashboard WITHOUT login (development/testing)
+ * - false → normal strict admin authentication (production)
+ */
+const DEV_MODE = true;
+
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // ⬅️ BYPASS authentication while developing
+    if (DEV_MODE) {
+      setIsAdmin(true);
+      setLoading(false);
+      return;
+    }
+
     checkAccess();
   }, []);
 
