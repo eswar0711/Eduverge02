@@ -56,7 +56,7 @@ const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ user }) => {
           </div>
           <h1 className="text-xl font-bold text-gray-800">EduVerge</h1>
         </div>
-        <p className="text-sm font-medium text-gray-800">{user.name}</p>
+        <p className="text-sm font-medium text-gray-800">{user.full_name}</p>
         <p className="text-xs text-gray-500 capitalize mt-1">
           {user.role === 'faculty' ? '👨‍🏫 Faculty' : '👨‍🎓 Student'}
         </p>

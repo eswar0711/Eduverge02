@@ -1,17 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCurrentAdmin, checkAdminAccess } from '../../utils/adminService';
+import { checkAdminAccess } from '../../utils/adminService';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-/**  
+/**
+ * Protected Admin Route Component
+ *
  * DEV MODE:
- * - true  → access admin dashboard WITHOUT login (development/testing)
- * - false → normal strict admin authentication (production)
+ * - true  → access admin dashboard WITHOUT strict login (development only)
+ * - false → strict admin authentication required (production)
+ *
+ * ⚠️ IMPORTANT: Always keep DEV_MODE = false in production!
  */
-const DEV_MODE = true;
+
+const DEV_MODE = false; // ✅ Set to FALSE for production
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const navigate = useNavigate();
@@ -19,30 +24,31 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ⬅️ BYPASS authentication while developing
+    // Development mode bypass
     if (DEV_MODE) {
       setIsAdmin(true);
       setLoading(false);
       return;
     }
 
+    // Production mode - check admin access
     checkAccess();
   }, []);
 
   const checkAccess = async () => {
     try {
-      const admin = await getCurrentAdmin();
+      // ✅ Checks JWT metadata, not database!
       const hasAccess = await checkAdminAccess();
 
-      if (!admin || !hasAccess) {
-        navigate('/');
+      if (!hasAccess) {
+        navigate('/login');
         return;
       }
 
       setIsAdmin(true);
     } catch (error) {
       console.error('Auth error:', error);
-      navigate('/');
+      navigate('/login');
     } finally {
       setLoading(false);
     }

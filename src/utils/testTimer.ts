@@ -1,3 +1,5 @@
+// src/utils/testTimer.ts
+
 import { supabase } from './supabaseClient';
 
 export interface TestSession {
@@ -12,11 +14,8 @@ export interface TestSession {
 }
 
 /**
- * Create or retrieve an existing test session
- * This ensures the timer doesn't reset if student leaves and comes back
- * 
- * SECURITY: Uses server-side timestamps to prevent client-side manipulation
- * FIX: Handles race condition when multiple requests create session simultaneously
+ * Create or retrieve an existing test session with improved conflict handling
+ * FIXED: Better handling of 409 Conflict errors with retry logic
  */
 export const getOrCreateTestSession = async (
   assessmentId: string,
@@ -29,130 +28,158 @@ export const getOrCreateTestSession = async (
       throw new Error('User not authenticated');
     }
 
-    // Check if session already exists for this student and assessment
-    // Changed from .single() to .maybeSingle() to avoid error when no rows
+    // ✅ STEP 1: Always check if session already exists FIRST
+    console.log('🔍 Checking for existing test session...');
     const { data: existingSession, error: fetchError } = await supabase
       .from('test_sessions')
       .select('*')
       .eq('assessment_id', assessmentId)
       .eq('student_id', user.id)
+      .eq('is_completed', false)
       .maybeSingle();
 
-    // If session exists and not completed, return it
-    // This prevents timer from restarting
-    if (existingSession && !existingSession.is_completed) {
-      console.log('✅ Existing test session found, resuming...');
-      return existingSession;
-    }
-
-    // If there's a real error, throw it
-    if (fetchError) {
+    if (fetchError && fetchError.code !== 'PGRST116') {
       throw fetchError;
     }
 
-    // Create new session if none exists
-    console.log('📝 Creating new test session...');
-    
-    try {
-      const { data: newSession, error: createError } = await supabase
-        .from('test_sessions')
-        .insert([
-          {
-            assessment_id: assessmentId,
-            student_id: user.id,
-            started_at: new Date().toISOString(),
-            duration_minutes: durationMinutes,
-            is_completed: false,
-          },
-        ])
-        .select()
-        .single();
-
-      if (createError) {
-        // Handle unique constraint violation (error code 23505)
-        // This happens when another request creates the session at same time
-        if (createError.code === '23505') {
-          console.log('⚠️ Race condition detected, retrieving existing session...');
-          
-          // Wait a tiny bit for the other request to finish
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          // Retry: Get the session that was just created by another request
-          const { data: newlyCreatedSession, error: retryError } = await supabase
-            .from('test_sessions')
-            .select('*')
-            .eq('assessment_id', assessmentId)
-            .eq('student_id', user.id)
-            .maybeSingle();
-
-          if (retryError) throw retryError;
-          
-          if (newlyCreatedSession) {
-            console.log('✅ Retrieved session created by concurrent request');
-            return newlyCreatedSession;
-          }
-        }
-        throw createError;
-      }
-
-      if (!newSession) {
-        throw new Error('Failed to create test session');
-      }
-
-      console.log('✅ New test session created');
-      return newSession;
-    } catch (error: any) {
-      // Additional safety: if create fails due to race condition, retrieve
-      if (error?.code === '23505') {
-        console.log('⚠️ Handling race condition with retry...');
-        
-        // Wait briefly then retry
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        const { data: sessionAfterRetry, error: retryError } = await supabase
-          .from('test_sessions')
-          .select('*')
-          .eq('assessment_id', assessmentId)
-          .eq('student_id', user.id)
-          .maybeSingle();
-
-        if (retryError) throw retryError;
-        
-        if (sessionAfterRetry) {
-          console.log('✅ Successfully retrieved session after retry');
-          return sessionAfterRetry;
-        }
-      }
-      throw error;
+    // If session exists and not completed, return it immediately
+    if (existingSession) {
+      console.log('✅ Existing active session found, resuming...');
+      return existingSession;
     }
-  } catch (error) {
-    console.error('Error in getOrCreateTestSession:', error);
+
+    console.log('📝 No existing session found, creating new one...');
+
+    // ✅ STEP 2: Try to create new session
+    let session: TestSession | null = null;
+    let lastError: any = null;
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`🔄 Creation attempt ${attempt}/3...`);
+
+        const { data: newSession, error: createError } = await supabase
+          .from('test_sessions')
+          .insert([
+            {
+              assessment_id: assessmentId,
+              student_id: user.id,
+              started_at: new Date().toISOString(),
+              duration_minutes: durationMinutes,
+              is_completed: false,
+            },
+          ])
+          .select('*')
+          .single();
+
+        if (createError) {
+          lastError = createError;
+
+          // 23505 = unique constraint violation / 409 = conflict
+          if (
+            createError.code === '23505' ||
+            createError.details?.includes('duplicate')
+          ) {
+            console.warn(
+              `⚠️ Attempt ${attempt}: Conflict detected (another request creating session)`
+            );
+
+            // Wait with exponential backoff before retry
+            await new Promise(resolve =>
+              setTimeout(resolve, 200 * Math.pow(2, attempt - 1))
+            );
+
+            // Retry fetching the session
+            const {
+              data: retriedSession,
+              error: retryFetchError,
+            } = await supabase
+              .from('test_sessions')
+              .select('*')
+              .eq('assessment_id', assessmentId)
+              .eq('student_id', user.id)
+              .eq('is_completed', false)
+              .maybeSingle();
+
+            if (!retryFetchError && retriedSession) {
+              console.log(
+                `✅ Successfully retrieved session created by concurrent request`
+              );
+              return retriedSession;
+            }
+
+            // If retry also failed, continue loop to attempt creation again
+            continue;
+          }
+
+          // Different error, throw it
+          throw createError;
+        }
+
+        if (newSession) {
+          console.log('✅ New test session created successfully');
+          session = newSession;
+          break;
+        }
+      } catch (error: any) {
+        console.error(`❌ Attempt ${attempt} failed:`, error);
+        lastError = error;
+
+        if (attempt < 3) {
+          const backoffMs = 200 * Math.pow(2, attempt - 1);
+          console.log(`⏳ Waiting ${backoffMs}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+        }
+      }
+    }
+
+    // ✅ STEP 3: If creation failed after retries, fetch the session one more time
+    if (!session) {
+      console.log(
+        '🔍 Creation failed, attempting final session retrieval...'
+      );
+      const {
+        data: finalSession,
+        error: finalError,
+      } = await supabase
+        .from('test_sessions')
+        .select('*')
+        .eq('assessment_id', assessmentId)
+        .eq('student_id', user.id)
+        .eq('is_completed', false)
+        .maybeSingle();
+
+      if (finalError) {
+        throw finalError;
+      }
+
+      if (finalSession) {
+        console.log('✅ Successfully retrieved session after retries');
+        return finalSession;
+      }
+
+      // If we reach here, something went wrong
+      throw lastError || new Error('Failed to create or retrieve test session');
+    }
+
+    return session;
+  } catch (error: any) {
+    console.error('❌ Fatal error in getOrCreateTestSession:', error);
     throw error;
   }
 };
 
 /**
  * Calculate remaining time based on server time (NOT client time)
- * This prevents client-side timer manipulation
- * 
- * Formula: (start_time + duration) - current_time = remaining_time
  */
 export const calculateRemainingTime = (session: TestSession): number => {
   try {
-    // Parse the server-stored start time
     const startTime = new Date(session.started_at).getTime();
-
-    // Calculate end time (start + duration)
     const durationMs = session.duration_minutes * 60 * 1000;
     const endTime = startTime + durationMs;
-
-    // Get current time from client (will be compared against server)
     const now = Date.now();
-
-    // Calculate remaining time
     const remaining = Math.max(0, endTime - now);
 
-    // Return in seconds (rounded up)
     return Math.ceil(remaining / 1000);
   } catch (error) {
     console.error('Error calculating remaining time:', error);
@@ -169,8 +196,7 @@ export const isTimeExpired = (session: TestSession): boolean => {
 };
 
 /**
- * Mark test as completed and record submission time
- * Should be called when student submits test
+ * Mark test as completed
  */
 export const completeTestSession = async (sessionId: string): Promise<void> => {
   try {
@@ -195,7 +221,6 @@ export const completeTestSession = async (sessionId: string): Promise<void> => {
 
 /**
  * Get all test sessions for an assessment (Faculty only)
- * Used for viewing submissions and student progress
  */
 export const getAssessmentSessions = async (
   assessmentId: string
@@ -274,7 +299,6 @@ export const getMyTestSessions = async (): Promise<TestSession[]> => {
 
 /**
  * Format seconds into readable time format
- * Example: 3665 seconds → "1h 1m 5s"
  */
 export const formatTimeDisplay = (seconds: number): string => {
   if (seconds <= 0) return '0s';
@@ -304,7 +328,6 @@ export const getSessionStats = (sessions: TestSession[]): {
   const completedSessions = sessions.filter(s => s.is_completed).length;
   const pendingSessions = totalSessions - completedSessions;
 
-  // Calculate average time taken to submit
   const submittedSessions = sessions.filter(
     s => s.submitted_at && s.is_completed
   );
@@ -333,7 +356,6 @@ export const getSessionStats = (sessions: TestSession[]): {
 
 /**
  * Validate if a student can start the test
- * Checks: authentication, assessment exists, session not completed
  */
 export const validateTestAccess = async (
   assessmentId: string
@@ -345,7 +367,6 @@ export const validateTestAccess = async (
       return { allowed: false, message: 'Please log in to take the test' };
     }
 
-    // Check if assessment exists
     const { data: assessment, error: assessmentError } = await supabase
       .from('assessments')
       .select('id')
@@ -356,7 +377,6 @@ export const validateTestAccess = async (
       return { allowed: false, message: 'Assessment not found' };
     }
 
-    // Check if student already completed this test
     const { data: existingSession, error: sessionError } = await supabase
       .from('test_sessions')
       .select('is_completed')

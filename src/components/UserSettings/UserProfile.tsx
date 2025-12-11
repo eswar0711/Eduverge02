@@ -62,7 +62,7 @@ const UserProfile: React.FC = () => {
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white bg-opacity-20 mb-4">
               <UserIcon className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-white">{user?.name || 'User'}</h2>
+            <h2 className="text-2xl font-bold text-white">{user?.full_name || 'User'}</h2>
             <p className="text-blue-100 mt-1 capitalize">{user?.role}</p>
           </div>
 
@@ -74,7 +74,7 @@ const UserProfile: React.FC = () => {
                 <Mail className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase">Email</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase">email</p>
                 <p className="text-gray-800 font-medium">{user?.email}</p>
               </div>
             </div>

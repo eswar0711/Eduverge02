@@ -86,8 +86,12 @@ const AIAssistantModule: React.FC<AIAssistantModuleProps> = ({ user }) => {
     showGreeting();
   };
 
+
+
+
+  
   const showGreeting = () => {
-    const greeting = getGreeting(user.name);
+    const greeting = getGreeting(user.full_name);
     setMessages([{
       id: Date.now().toString(),
       content: greeting,
@@ -135,7 +139,7 @@ const AIAssistantModule: React.FC<AIAssistantModuleProps> = ({ user }) => {
     setIsLoading(true);
 
     try {
-      const aiResponse = await sendMessageToAI(conversationHistory.current, user.name);
+      const aiResponse = await sendMessageToAI(conversationHistory.current, user.full_name);
 
       // Add AI response to UI
       const aiChatMessage: ChatMessageType = {

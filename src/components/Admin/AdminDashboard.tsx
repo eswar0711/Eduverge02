@@ -23,6 +23,7 @@ export default function AdminDashboard() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+
       if (user?.email) {
         setAdminName(user.email.split('@')[0]);
       }

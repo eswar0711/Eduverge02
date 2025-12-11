@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { getCurrentUser } from './utils/auth';
-import type { User } from './utils/supabaseClient';
+import type { UserProfile } from './utils/supabaseClient';
 import LoginPage from './pages/LoginPage';
 import FacultyDashboard from './components/FacultyDashboard';
 import StudentDashboard from './components/StudentDashboard';
@@ -12,20 +12,17 @@ import CoursePage from './components/CoursePage';
 import FacultyCourseMaterials from './components/FacultyCourseMaterials';
 import ScoreCalculatorModule from './components/ScoreCalculator/ScoreCalculatorModule';
 import AIAssistantModule from './components/AIAssistant/AIAssistantModule';
-import { ChangePassword, UserProfile } from './components/UserSettings'; // NEW
+import { ChangePassword, UserProfile as UserProfileComponent } from './components/UserSettings';
 import ProtectedRoute from './components/Admin/ProtectedRoute';
 import AdminDashboard from './components/Admin/AdminDashboard';
 
-
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-
 
   useEffect(() => {
     checkUser();
   }, []);
-
 
   const checkUser = async () => {
     try {
@@ -38,7 +35,6 @@ const App: React.FC = () => {
     }
   };
 
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -47,39 +43,28 @@ const App: React.FC = () => {
     );
   }
 
-
   return (
     <Router>
       <Routes>
         {/* Login Route */}
-        <Route 
-          path="/login" 
-          element={!user ? <LoginPage onLogin={checkUser} /> : <Navigate to="/" />} 
+        <Route
+          path="/login"
+          element={!user ? <LoginPage onLogin={checkUser} /> : <Navigate to="/" />}
         />
-        {/* Admin Routes */}
-        <Route
-  path="/admin/*"
-  element={
-    user && user.email === 'tsushmanth@gmail.com' ? (
-      <ProtectedRoute>
-        <AdminDashboard />
-      </ProtectedRoute>
-    ) : (
-      <Navigate to="/login" />
-    )
-  }
-/>
 
-{/* 
+        {/* Admin Routes - Protected */}
         <Route
-  path="/admin/*"
-  element={
-    <ProtectedRoute>
-      <AdminDashboard />
-    </ProtectedRoute>
-  }
-/> */}
-
+          path="/admin/*"
+          element={
+            user && user.role === 'admin' ? (
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
 
         {/* Dashboard Routes */}
         <Route
@@ -97,62 +82,47 @@ const App: React.FC = () => {
           }
         />
 
-
-        {/* Faculty Assessment Routes */}
+        {/* Faculty Routes */}
         <Route
           path="/create-assessment"
           element={user?.role === 'faculty' ? <AssessmentCreation user={user} /> : <Navigate to="/" />}
         />
 
-
-        {/* Faculty Course Materials Route */}
         <Route
           path="/course-materials"
           element={user?.role === 'faculty' ? <FacultyCourseMaterials user={user} /> : <Navigate to="/" />}
         />
 
-
-        {/* Student Test Taking Route */}
+        {/* Student Routes */}
         <Route
           path="/take-test/:assessmentId"
           element={user?.role === 'student' ? <TestTaking user={user} /> : <Navigate to="/" />}
         />
 
-
-        {/* Results Route */}
-        <Route
-          path="/results/:submissionId"
-          element={user ? <ResultsPage user={user} /> : <Navigate to="/login" />}
-        />
-
-
-        {/* Student Course Page Route */}
         <Route
           path="/courses"
           element={user?.role === 'student' ? <CoursePage user={user} /> : <Navigate to="/" />}
         />
 
-
-        
-
-
-        {/* Student AI Assistant Route */}
         <Route
           path="/ai-assistant"
           element={user?.role === 'student' ? <AIAssistantModule user={user} /> : <Navigate to="/" />}
         />
 
-        {/* Student Score Calculator Route */}
         <Route
           path="/score-calculator"
           element={user?.role === 'student' ? <ScoreCalculatorModule /> : <Navigate to="/" />}
         />
 
+        {/* Common Routes */}
+        <Route
+          path="/results/:submissionId"
+          element={user ? <ResultsPage user={user} /> : <Navigate to="/login" />}
+        />
 
-        {/* UserSettings Routes - NEW */}
         <Route
           path="/profile"
-          element={user ? <UserProfile /> : <Navigate to="/login" />}
+          element={user ? <UserProfileComponent /> : <Navigate to="/login" />}
         />
 
         <Route
@@ -160,15 +130,11 @@ const App: React.FC = () => {
           element={user ? <ChangePassword /> : <Navigate to="/login" />}
         />
 
-        
-
-
-        {/* Catch-all - Redirect to dashboard */}
+        {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
   );
 };
-
 
 export default App;

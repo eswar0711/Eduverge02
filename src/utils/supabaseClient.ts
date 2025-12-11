@@ -1,21 +1,61 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Remove local ImportMeta/ImportMetaEnv interfaces and use a global declaration in a .d.ts file for Vite env typing.
+// ================================================================
+// ENV CONFIG
+// ================================================================
 
-// Replace these with your actual Supabase project credentials
-// You can find these in your Supabase project settings
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY;
 
+// Validate
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('❌ Missing Supabase configuration in .env');
+}
+
+if (!supabaseServiceKey) {
+  console.warn('⚠️ SERVICE_ROLE key missing — Admin features disabled');
+}
+
+// ================================================================
+// CREATE CLIENTS
+// ================================================================
+
+// Normal client (RLS enabled)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Database types for TypeScript
+// Admin client (RLS bypassed) — only if key exists
+export const supabaseAdmin = supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
+  : null;
+
+// ================================================================
+// DATABASE TYPES FOR TYPESCRIPT
+// ================================================================
+
 export interface User {
   id: string;
-  name: string;
+  full_name: string;
   email: string;
-  role: 'faculty' | 'student';
+  role: 'faculty' | 'student' | 'admin';
   created_at: string;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  role: 'faculty' | 'student' | 'admin';
+  phone?: string;
+  department?: string;
+  profile_picture_url?: string;
+  is_active: boolean;
+  is_blocked: boolean;
+  bio?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Assessment {
@@ -33,8 +73,8 @@ export interface Question {
   assessment_id: string;
   type: 'MCQ' | 'Theory';
   question_text: string;
-  options?: string[]; // Only for MCQ
-  correct_answer?: string; // Only for MCQ
+  options?: string[];
+  correct_answer?: string;
   marks: number;
   created_at: string;
 }
@@ -43,13 +83,12 @@ export interface Submission {
   id: string;
   assessment_id: string;
   student_id: string;
-  answers: Record<string, string>; // { question_id: answer }
+  answers: Record<string, string>;
   mcq_score: number;
   theory_score: number | null;
   total_score: number;
   submitted_at: string;
 }
-
 
 export interface Subject {
   id: string;
