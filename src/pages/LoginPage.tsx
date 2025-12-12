@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { signIn, signUp } from '../utils/auth';
 import { BookOpen } from 'lucide-react';
-import '../index.css'
-// import {sss} from '../../dist/assets/motion.mp4'
+import '../index.css';
+
+// import media from src/images (adjust relative path if file lives somewhere else)
+import verVideo from '../images/ver.mp4';
+import eduImg from '../images/edu.png';
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -18,15 +21,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
-  // Check for prefers-reduced-motion on mount
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     setPrefersReducedMotion(mediaQuery.matches);
-
-    const handleChange = (e: MediaQueryListEvent) => {
-      setPrefersReducedMotion(e.matches);
-    };
-
+    const handleChange = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
@@ -35,12 +33,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       if (isSignUp) {
         await signUp(email, password, first_name, role);
         alert('Account created! Please check your email to verify your account.');
-        // Reset form
         setIsSignUp(false);
         setEmail('');
         setPassword('');
@@ -51,7 +47,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         onLogin();
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      setError(err?.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -66,14 +62,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           muted
           loop
           playsInline
+          poster={eduImg}               // shows while video loads
           className="absolute inset-0 w-full h-full object-cover"
           style={{ willChange: 'auto' }}
         >
-           <source src="../../dist/assets/motion.mp4" type="video/mp4" />
-          {/* <source src="../../dist/assets/Untitled-design-_1_ (1).mp4" type="video/mp4" /> */}
-          {/* Fallback for browsers that don't support video */}
+          <source src={verVideo} type="video/mp4" />
+          {/* Fallback image for browsers that don't support video */}
           <img
-            src="../../dist/assets/fallbck.png"
+            src={eduImg}
             alt="background"
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -83,7 +79,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       {/* Static Image Fallback for reduced motion or non-video support */}
       {prefersReducedMotion && (
         <img
-          src="/assets/Untitled-design.jpg"
+          src={eduImg}
           alt="background"
           className="absolute inset-0 w-full h-full object-cover"
         />
@@ -99,15 +95,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             <BookOpen className="w-8 h-8 text-primary-600" />
           </div>
           <h1 className="text-3xl font-bold text-gray-800">EduVerge</h1>
-          <p className="text-gray-600 mt-2">Smart Learning & Assessment</p>
+          <p className="text-gray-600 mt-2">Smart Learning &amp; Assessment</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {isSignUp && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
               <input
                 type="text"
                 value={first_name}
@@ -120,9 +114,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
               type="email"
               value={email}
@@ -134,9 +126,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <input
               type="password"
               value={password}
@@ -150,14 +140,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
           {isSignUp && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Role
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
               <select
                 value={role}
-                onChange={(e) =>
-                  setRole(e.target.value as 'faculty' | 'student')
-                }
+                onChange={(e) => setRole(e.target.value as 'faculty' | 'student')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 transition-all"
               >
                 <option value="student">Student</option>
@@ -192,9 +178,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             }}
             className="text-primary-600 hover:text-primary-700 text-sm font-medium transition-colors"
           >
-            {isSignUp
-              ? 'Already have an account? Sign In'
-              : "Don't have an account? Sign Up"}
+            {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
           </button>
         </div>
       </div>
